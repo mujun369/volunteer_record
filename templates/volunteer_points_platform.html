@@ -157,8 +157,8 @@
     <h1>斯坦福成长创新圈志愿者积分记录平台</h1>
     <div class="filter-container">
         <select id="activity-type" onchange="updateTable()">
-            <option value="offline">线下活动</option>
             <option value="online">线上直播</option>
+            <option value="offline">线下活动</option>
         </select>
     </div>
     <!-- 原表格 -->
@@ -180,7 +180,8 @@
     <div style="margin-left: 10%; margin-top: 20px;">
         <button id="submit-btn" class="action-btn">提交</button>
         <button id="clear-btn" class="action-btn">清空上表</button>
-        <button id="export-btn" class="action-btn export-btn">导出表格</button>
+        <button id="export-activity-btn" class="action-btn export-btn">导出活动总览表</button>
+        <button id="export-summary-btn" class="action-btn export-btn">导出志愿者积分总表</button>
     </div>
 
     <!-- 移动汇总表格到提交按钮下方 -->
@@ -247,15 +248,18 @@
                     scoreCell.style.borderRight = '1px solid #ddd';
                     scoreCell.style.borderBottom = '1px solid #ddd';
                 } else {
-                    // 后续行：不创建活动时间单元格，只有3个单元格
-                    // 类别单元格索引为0
-                    const categoryCell = newRow.insertCell(0);
+                    // 后续行：创建隐藏的活动时间单元格，保持4单元格结构一致
+                    const hiddenTimeCell = newRow.insertCell(0);
+                    hiddenTimeCell.style.display = 'none';
+
+                    // 类别单元格索引为1
+                    const categoryCell = newRow.insertCell(1);
                     const categorySelect = createCategorySelect(activityType);
                     categorySelect.value = category;
                     categoryCell.appendChild(categorySelect);
 
-                    // 名字单元格索引为1
-                    const nameCell = newRow.insertCell(1);
+                    // 名字单元格索引为2
+                    const nameCell = newRow.insertCell(2);
                     nameCell.contentEditable = true;
                     nameCell.textContent = '';
                     nameCell.style.minHeight = '20px';
@@ -263,8 +267,8 @@
                     nameCell.style.borderRight = '1px solid #ddd';
                     nameCell.style.borderBottom = '1px solid #ddd';
 
-                    // 积分单元格索引为2
-                    const scoreCell = newRow.insertCell(2);
+                    // 积分单元格索引为3
+                    const scoreCell = newRow.insertCell(3);
                     scoreCell.contentEditable = true;
                     scoreCell.textContent = '';
                     scoreCell.style.minHeight = '20px';
@@ -340,7 +344,8 @@
             if (referenceRow && referenceRow.cells[1]) {
                 const referenceSelect = referenceRow.cells[1].querySelector('select');
                 if (referenceSelect) {
-                    categorySelect.value = referenceSelect.value;
+                    const referenceValue = referenceSelect.value;
+                    categorySelect.value = referenceValue;
                 }
             }
 
@@ -535,9 +540,9 @@
             updateTable(); // 重新初始化表格
         });
 
-        // 新增导出按钮点击事件
-        document.getElementById('export-btn').addEventListener('click', function() {
-            const exportBtn = document.getElementById('export-btn');
+        // 导出活动总览表按钮点击事件
+        document.getElementById('export-activity-btn').addEventListener('click', function() {
+            const exportBtn = document.getElementById('export-activity-btn');
             const originalText = exportBtn.textContent;
 
             // 显示加载状态
@@ -560,13 +565,57 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = 'volunteer_points_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+                a.download = 'volunteer_activity_overview_' + new Date().toISOString().slice(0, 10) + '.xlsx';
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
-                alert('导出成功！文件已下载到本地。');
+                alert('活动总览表导出成功！文件已下载到本地。');
+            })
+            .catch(error => {
+                console.error('导出失败:', error);
+                alert('导出失败，请检查网络连接或联系管理员');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                exportBtn.textContent = originalText;
+                exportBtn.disabled = false;
+            });
+        });
+
+        // 导出志愿者积分总表按钮点击事件
+        document.getElementById('export-summary-btn').addEventListener('click', function() {
+            const exportBtn = document.getElementById('export-summary-btn');
+            const originalText = exportBtn.textContent;
+
+            // 显示加载状态
+            exportBtn.textContent = '导出中...';
+            exportBtn.disabled = true;
+
+            // 调用后端导出志愿者积分总表接口
+            fetch('/export_volunteer_summary', {
+                method: 'GET',
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('导出失败');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // 创建下载链接
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'volunteer_points_summary_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                alert('志愿者积分总表导出成功！文件已下载到本地。');
             })
             .catch(error => {
                 console.error('导出失败:', error);
@@ -591,6 +640,10 @@
             const tableData = [];
             const rows = document.getElementById('table-body').rows;
             const activityTimeName = mergedCell ? mergedCell.textContent.trim() : '';
+            const activityTypeValue = document.getElementById('activity-type').value; // 获取活动类型值
+
+            // 将英文值转换为中文
+            const activityType = activityTypeValue === 'offline' ? '线下活动' : '线上直播';
 
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
@@ -605,8 +658,8 @@
                     if (name && score && category) {
                         const scoreValue = parseInt(score, 10);
                         if (!isNaN(scoreValue)) {
-                            // 按照后端期望的格式：[activity_time_name, category, name, score]
-                            tableData.push([activityTimeName, category, name, scoreValue.toString()]);
+                            // 新格式：[activity_type, activity_time_name, category, name, score]
+                            tableData.push([activityType, activityTimeName, category, name, scoreValue.toString()]);
                         }
                     }
                 } else {
