@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斯坦福成长创新圈志愿者积分记录平台</title>
+    <style>
+        h1 {
+            text-align: center;
+        }
+        .filter-container {
+            /* 新增样式，设置外边距使其与表格第一列对齐 */
+            margin-left: 10%; 
+            text-align: left; 
+            margin-bottom: 20px;
+        }
+        table {
+            width: 80%;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            /* 确保每个单元格都有右侧边框 */
+            border-right: 1px solid #ddd; 
+        }
+        th {
+            background-color: #f2f2f2;
+            /* 假设表头字体大小为 16px，可根据实际调整 */
+            font-size: 16px; 
+        }
+        /* 新增按钮样式 */
+        .insert-btn {
+            padding: 5px 10px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .insert-btn:hover {
+            background-color: #1976D2;
+        }
+        /* 调大线下活动相关文字的字体大小，使其与表头一致，再调大一号 */
+        #activity-type option[value="offline"],
+        #activity-type {
+            font-size: 18px; /* 调大一号字体 */
+        }
+        /* 如果是表格里的线下活动内容，也可以添加类似规则 */
+        /* 假设线下活动加载后表格有特定样式标识 */
+        .offline-activity-row td {
+            font-size: 1.1em; 
+        }
+        /* 缩小类别列的筛选框宽度 */
+        #table-body select {
+            width: 80%; 
+            box-sizing: border-box;
+            border: none; 
+            font-size: 16px; 
+            outline: none; 
+        }
+        /* 新增表格样式 */
+        #summary-table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        #summary-table th, #summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            border-right: 1px solid #ddd; 
+        }
+        #summary-table th {
+            background-color: #f2f2f2;
+            font-size: 16px; 
+        }
+        /* 新增滚动条样式 */
+        .scrollable-table-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>斯坦福成长创新圈志愿者积分记录平台</h1>
+    <div class="filter-container">
+        <select id="activity-type" onchange="updateTable()">
+            <option value="offline">线下活动</option>
+            <option value="online">线上直播</option>
+        </select>
+    </div>
+    <!-- 原表格 -->
+    <table id="volunteer-table">
+        <thead>
+            <tr>
+                <th>活动时间与名称</th>
+                <th>类别</th>
+                <th>名字</th>
+                <th>积分</th> <!-- 修改为积分 -->
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <!-- 表格行将通过 JavaScript 动态添加 -->
+        </tbody>
+    </table>
+
+    <!-- 仅保留提交按钮，并添加清空按钮 -->
+    <div style="margin-left: 10%; margin-top: 20px;">
+        <button id="submit-btn" class="action-btn">提交</button>
+        <button id="clear-btn" class="action-btn">清空上表</button>
+    </div>
+
+    <!-- 移动汇总表格到提交按钮下方 -->
+    <div class="scrollable-table-container">
+        <table id="summary-table">
+            <thead>
+                <tr>
+                    <th>志愿者名字</th>
+                    <th>积分</th>
+                    <th>已使用积分</th>
+                </tr>
+            </thead>
+            <tbody id="summary-table-body">
+                <!-- 表格行将通过 JavaScript 动态添加 -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const offlineCategories = ['宣发', '签到', '写稿', '场务', '剪辑'];
+        const onlineCategories = ['直播助手', '写稿', '视频剪辑', '海报'];
+        let mergedCell = null;
+
+        function updateTable() {
+            const activityType = document.getElementById('activity-type').value;
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // 清空表格内容
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            categories.forEach((category, index) => {
+                const newRow = tableBody.insertRow();
+
+                if (index === 0) {
+                    mergedCell = newRow.insertCell(0);
+                    mergedCell.rowSpan = categories.length;
+                    mergedCell.contentEditable = true;
+                } else {
+                    newRow.insertCell(0).style.display = 'none';
+                }
+
+                const categoryCell = newRow.insertCell(1);
+                const categorySelect = createCategorySelect(activityType);
+                categorySelect.value = category;
+                categoryCell.appendChild(categorySelect);
+
+                const nameCell = newRow.insertCell(2);
+                nameCell.contentEditable = true;
+
+                const scoreCell = newRow.insertCell(3);
+                scoreCell.contentEditable = true;
+                scoreCell.placeholder = '积分'; // 可根据需要添加占位符提示
+            });
+        }
+
+        function createCategorySelect(activityType) {
+            const categorySelect = document.createElement('select');
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+            return categorySelect;
+        }
+
+        function addRow(position = 'after', selectedCell = null) {
+            const activityType = document.getElementById('activity-type').value;
+            const tableBody = document.getElementById('table-body');
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            let newRow;
+        
+            if (selectedCell) {
+                const selectedRow = selectedCell.parentNode;
+                const rowIndex = Array.from(tableBody.rows).indexOf(selectedRow);
+                newRow = tableBody.insertRow(position === 'before' ? rowIndex : rowIndex + 1);
+            } else {
+                newRow = tableBody.insertRow();
+            }
+        
+            if (mergedCell) {
+                mergedCell.rowSpan++;
+                newRow.insertCell(0).style.display = 'none';
+            }
+        
+            const categoryCell = newRow.insertCell(1);
+            const categorySelect = createCategorySelect(activityType);
+            categoryCell.appendChild(categorySelect);
+        
+            const nameCell = newRow.insertCell(2);
+            nameCell.contentEditable = true;
+        
+            const scoreCell = newRow.insertCell(3);
+            scoreCell.contentEditable = true;
+            scoreCell.placeholder = '积分'; // 可根据需要添加占位符提示
+        
+            // 检查是否需要合并类别列单元格
+            if (newRow.rowIndex > 0) {
+                let firstMergedRow = tableBody.rows[newRow.rowIndex - 1];
+                // 回溯找到第一个未隐藏的类别列单元格
+                while (firstMergedRow.rowIndex > 0 && firstMergedRow.cells[1].style.display === 'none') {
+                    firstMergedRow = tableBody.rows[firstMergedRow.rowIndex - 1];
+                }
+        
+                const firstMergedCategorySelect = firstMergedRow.cells[1].querySelector('select');
+                if (firstMergedCategorySelect && categorySelect.value === firstMergedCategorySelect.value) {
+                    const firstMergedCategoryCell = firstMergedCategorySelect.parentNode;
+                    // 更新合并单元格的 rowSpan
+                    firstMergedCategoryCell.rowSpan = (firstMergedCategoryCell.rowSpan || 1) + 1;
+                    // 隐藏新插入行的类别列单元格
+                    categoryCell.style.display = 'none';
+                }
+            }
+        }
+
+        // 为表格单元格添加右键菜单
+        document.getElementById('volunteer-table').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const cell = e.target.closest('td');
+            if (cell) {
+                const insertAfterBtn = document.createElement('button');
+                insertAfterBtn.className = 'insert-btn';
+                insertAfterBtn.textContent = '在下一行插入';
+                insertAfterBtn.onclick = () => {
+                    addRow('after', cell);
+                };
+
+                const deleteRowBtn = document.createElement('button');
+                deleteRowBtn.className = 'insert-btn';
+                deleteRowBtn.textContent = '删除当前行';
+                deleteRowBtn.onclick = () => {
+                    const row = cell.parentNode;
+                    const tableBody = document.getElementById('table-body');
+                    tableBody.removeChild(row);
+                    if (mergedCell) {
+                        mergedCell.rowSpan--;
+                    }
+                };
+
+                const contextMenu = document.createElement('div');
+                contextMenu.style.position = 'absolute';
+                contextMenu.style.left = e.pageX + 'px';
+                contextMenu.style.top = e.pageY + 'px';
+                contextMenu.style.backgroundColor = 'white';
+                contextMenu.style.border = '1px solid #ddd';
+                contextMenu.style.padding = '5px';
+                contextMenu.appendChild(insertAfterBtn);
+                contextMenu.appendChild(deleteRowBtn);
+
+                document.body.appendChild(contextMenu);
+
+                const removeMenu = () => {
+                    document.body.removeChild(contextMenu);
+                    document.removeEventListener('click', removeMenu);
+                };
+
+                document.addEventListener('click', removeMenu);
+            }
+        });
+
+        // 页面加载时初始化表格
+        window.onload = function() {
+            updateTable();
+        };
+
+        // 新增样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .action-btn {
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                margin-right: 10px;
+            }
+            .action-btn:hover {
+                background-color: #45a049;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 提交按钮点击事件（修改后，移除提示窗口）
+        // 新增清空按钮点击事件
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // 清空表格内容
+            const activityType = document.getElementById('activity-type').value;
+            updateTable(); // 重新初始化表格
+        });
+
+        // 提交按钮点击事件（修改后，合并重复名字并累加积分）
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            const tableData = [];
+            const rows = document.getElementById('table-body').rows;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const name = row.cells[2].textContent.trim();
+                const score = row.cells[3].textContent.trim();
+                if (name && score) {
+                    const scoreValue = parseInt(score, 10);
+                    if (!isNaN(scoreValue)) {
+                        tableData.push({ name, score: scoreValue });
+                    }
+                }
+            }
+        
+            // 存储合并后的数据
+            const mergedData = {};
+            tableData.forEach(({ name, score }) => {
+                if (mergedData[name]) {
+                    mergedData[name] += score;
+                } else {
+                    mergedData[name] = score;
+                }
+            });
+        
+            const summaryTableBody = document.getElementById('summary-table-body');
+            // 清空汇总表格
+            summaryTableBody.innerHTML = '';
+        
+            // 将合并后的数据添加到汇总表格
+            for (const [name, score] of Object.entries(mergedData)) {
+                const newRow = summaryTableBody.insertRow();
+                const nameCell = newRow.insertCell(0);
+                nameCell.textContent = name;
+                const scoreCell = newRow.insertCell(1);
+                scoreCell.textContent = score;
+                const usedScoreCell = newRow.insertCell(2);
+                usedScoreCell.contentEditable = true;
+            }
+        });
+    </script>
+</body>
+</html>

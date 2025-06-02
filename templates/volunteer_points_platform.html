@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斯坦福成长创新圈志愿者积分记录平台</title>
+    <style>
+        h1 {
+            text-align: center;
+        }
+        .filter-container {
+            /* 新增样式，设置外边距使其与表格第一列对齐 */
+            margin-left: 10%; 
+            text-align: left; 
+            margin-bottom: 20px;
+        }
+        table {
+            width: 80%;
+            margin: 0 auto;
+            border-collapse: collapse;
+            border: 1px solid #ddd; /* 表格外边框 */
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            /* 确保每个单元格都有完整边框 */
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+        th {
+            background-color: #f2f2f2;
+            /* 假设表头字体大小为 16px，可根据实际调整 */
+            font-size: 16px; 
+        }
+        /* 新增按钮样式 */
+        .insert-btn {
+            padding: 5px 10px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .insert-btn:hover {
+            background-color: #1976D2;
+        }
+        /* 调大线下活动相关文字的字体大小，使其与表头一致，再调大一号 */
+        #activity-type option[value="offline"],
+        #activity-type {
+            font-size: 18px; /* 调大一号字体 */
+        }
+        /* 如果是表格里的线下活动内容，也可以添加类似规则 */
+        /* 假设线下活动加载后表格有特定样式标识 */
+        .offline-activity-row td {
+            font-size: 1.1em; 
+        }
+        /* 缩小类别列的筛选框宽度 */
+        #table-body select {
+            width: 80%;
+            box-sizing: border-box;
+            border: none;
+            font-size: 16px;
+            outline: none;
+        }
+        /* 可编辑单元格样式 */
+        td[contenteditable="true"] {
+            min-height: 20px;
+            background-color: #fafafa;
+            transition: background-color 0.2s;
+            border: 1px solid #ddd !important; /* 强制显示边框 */
+            box-sizing: border-box;
+        }
+        td[contenteditable="true"]:hover {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc !important; /* 悬停时稍微加深边框 */
+        }
+        td[contenteditable="true"]:focus {
+            background-color: #fff;
+            border: 2px solid #2196F3 !important; /* 焦点时使用蓝色边框 */
+            outline: none; /* 移除默认outline */
+        }
+        /* 确保所有表格行高度一致 */
+        #table-body tr {
+            height: 40px;
+        }
+        #table-body td {
+            vertical-align: middle;
+        }
+        /* 强制所有表格单元格显示边框 */
+        #volunteer-table td,
+        #volunteer-table th {
+            border: 1px solid #ddd !important;
+            border-collapse: separate !important;
+        }
+        /* 移除可能冲突的CSS选择器，让JavaScript设置的内联样式生效 */
+        /* 只保留基础的表格样式 */
+        /* 确保可编辑单元格的边框 */
+        #table-body td[contenteditable="true"] {
+            border: 1px solid #ddd !important;
+        }
+        /* 新增表格样式 */
+        #summary-table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        #summary-table th, #summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            border-right: 1px solid #ddd; 
+        }
+        #summary-table th {
+            background-color: #f2f2f2;
+            font-size: 16px; 
+        }
+        /* 新增滚动条样式 */
+        .scrollable-table-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        /* 排序相关样式 */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable:hover {
+            background-color: #e8e8e8;
+        }
+        .sort-arrow {
+            font-size: 12px;
+            color: #999;
+            margin-left: 5px;
+        }
+        .sort-asc .sort-arrow {
+            color: #2196F3;
+        }
+        .sort-desc .sort-arrow {
+            color: #2196F3;
+        }
+        .sort-asc .sort-arrow::before {
+            content: '↑';
+        }
+        .sort-desc .sort-arrow::before {
+            content: '↓';
+        }
+        .sort-asc .sort-arrow,
+        .sort-desc .sort-arrow {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>斯坦福成长创新圈志愿者积分记录平台</h1>
+    <div class="filter-container">
+        <select id="activity-type" onchange="updateTable()">
+            <option value="offline">线下活动</option>
+            <option value="online">线上直播</option>
+        </select>
+    </div>
+    <!-- 原表格 -->
+    <table id="volunteer-table">
+        <thead>
+            <tr>
+                <th>活动时间与名称</th>
+                <th>类别</th>
+                <th>名字</th>
+                <th>积分</th> <!-- 修改为积分 -->
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <!-- 表格行将通过 JavaScript 动态添加 -->
+        </tbody>
+    </table>
+
+    <!-- 仅保留提交按钮，并添加清空按钮和导出按钮 -->
+    <div style="margin-left: 10%; margin-top: 20px;">
+        <button id="submit-btn" class="action-btn">提交</button>
+        <button id="clear-btn" class="action-btn">清空上表</button>
+        <button id="export-btn" class="action-btn export-btn">导出表格</button>
+    </div>
+
+    <!-- 移动汇总表格到提交按钮下方 -->
+    <div class="scrollable-table-container">
+        <table id="summary-table">
+            <thead>
+                <tr>
+                    <th id="sort-name" class="sortable">志愿者名字 <span class="sort-arrow">↕</span></th>
+                    <th id="sort-score" class="sortable">积分 <span class="sort-arrow">↕</span></th>
+                    <th>已使用积分</th>
+                </tr>
+            </thead>
+            <tbody id="summary-table-body">
+                <!-- 表格行将通过 JavaScript 动态添加 -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const offlineCategories = ['宣发', '签到', '写稿', '场务', '剪辑'];
+        const onlineCategories = ['直播助手', '写稿', '视频剪辑', '海报'];
+        let mergedCell = null;
+
+        // 排序相关变量
+        let currentSortColumn = null;
+        let currentSortDirection = 'asc';
+        let summaryDataCache = [];
+
+        function updateTable() {
+            const activityType = document.getElementById('activity-type').value;
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // 清空表格内容
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            categories.forEach((category, index) => {
+                const newRow = tableBody.insertRow();
+
+                if (index === 0) {
+                    // 第一行：创建合并的活动时间单元格
+                    mergedCell = newRow.insertCell(0);
+                    mergedCell.rowSpan = categories.length;
+                    mergedCell.contentEditable = true;
+
+                    // 第一行的类别单元格索引为1
+                    const categoryCell = newRow.insertCell(1);
+                    const categorySelect = createCategorySelect(activityType);
+                    categorySelect.value = category;
+                    categoryCell.appendChild(categorySelect);
+
+                    // 第一行的名字单元格索引为2
+                    const nameCell = newRow.insertCell(2);
+                    nameCell.contentEditable = true;
+                    nameCell.textContent = '';
+                    nameCell.style.minHeight = '20px';
+                    nameCell.style.border = '1px solid #ddd';
+                    nameCell.style.borderRight = '1px solid #ddd';
+                    nameCell.style.borderBottom = '1px solid #ddd';
+
+                    // 第一行的积分单元格索引为3
+                    const scoreCell = newRow.insertCell(3);
+                    scoreCell.contentEditable = true;
+                    scoreCell.textContent = '';
+                    scoreCell.style.minHeight = '20px';
+                    scoreCell.style.border = '1px solid #ddd';
+                    scoreCell.style.borderRight = '1px solid #ddd';
+                    scoreCell.style.borderBottom = '1px solid #ddd';
+                } else {
+                    // 后续行：不创建活动时间单元格，只有3个单元格
+                    // 类别单元格索引为0
+                    const categoryCell = newRow.insertCell(0);
+                    const categorySelect = createCategorySelect(activityType);
+                    categorySelect.value = category;
+                    categoryCell.appendChild(categorySelect);
+
+                    // 名字单元格索引为1
+                    const nameCell = newRow.insertCell(1);
+                    nameCell.contentEditable = true;
+                    nameCell.textContent = '';
+                    nameCell.style.minHeight = '20px';
+                    nameCell.style.border = '1px solid #ddd';
+                    nameCell.style.borderRight = '1px solid #ddd';
+                    nameCell.style.borderBottom = '1px solid #ddd';
+
+                    // 积分单元格索引为2
+                    const scoreCell = newRow.insertCell(2);
+                    scoreCell.contentEditable = true;
+                    scoreCell.textContent = '';
+                    scoreCell.style.minHeight = '20px';
+                    scoreCell.style.border = '1px solid #ddd';
+                    scoreCell.style.borderRight = '1px solid #ddd';
+                    scoreCell.style.borderBottom = '1px solid #ddd';
+                }
+            });
+
+            // 调试初始表格结构
+            console.log('🏗️ 初始表格创建完成:', {
+                totalRows: tableBody.rows.length,
+                rowStructures: Array.from(tableBody.rows).map((row, index) => ({
+                    rowIndex: index,
+                    cellCount: row.cells.length,
+                    cellTypes: Array.from(row.cells).map((cell, cellIndex) => ({
+                        cellIndex: cellIndex,
+                        hasSelect: !!cell.querySelector('select'),
+                        isContentEditable: cell.contentEditable === 'true',
+                        display: cell.style.display
+                    }))
+                }))
+            });
+        }
+
+        function createCategorySelect(activityType) {
+            const categorySelect = document.createElement('select');
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+            return categorySelect;
+        }
+
+        function addRow(position = 'after', selectedCell = null) {
+            const activityType = document.getElementById('activity-type').value;
+            const tableBody = document.getElementById('table-body');
+            const categories = activityType === 'offline' ? offlineCategories : onlineCategories;
+            let newRow;
+            let referenceRow = null;
+
+            if (selectedCell) {
+                const selectedRow = selectedCell.parentNode;
+                const rowIndex = Array.from(tableBody.rows).indexOf(selectedRow);
+                newRow = tableBody.insertRow(position === 'before' ? rowIndex : rowIndex + 1);
+                referenceRow = selectedRow;
+            } else {
+                newRow = tableBody.insertRow();
+                // 如果没有指定位置，使用最后一行作为参考
+                if (tableBody.rows.length > 1) {
+                    referenceRow = tableBody.rows[tableBody.rows.length - 2];
+                }
+            }
+
+            // 增加合并单元格的行跨度
+            if (mergedCell) {
+                mergedCell.rowSpan++;
+            }
+
+            // 创建隐藏的活动时间单元格（与原有行结构保持一致）
+            const hiddenTimeCell = newRow.insertCell(0);
+            hiddenTimeCell.style.display = 'none';
+
+            // 创建类别单元格（新行的第二个单元格，对应表头的第二列）
+            const categoryCell = newRow.insertCell(1);
+            const categorySelect = createCategorySelect(activityType);
+
+            // 如果有参考行，设置新行的类别与参考行一致
+            // 现在所有行的类别单元格都在索引1
+            if (referenceRow && referenceRow.cells[1]) {
+                const referenceSelect = referenceRow.cells[1].querySelector('select');
+                if (referenceSelect) {
+                    categorySelect.value = referenceSelect.value;
+                }
+            }
+
+            categoryCell.appendChild(categorySelect);
+
+            // 创建名字单元格（新行的第三个单元格，对应表头的第三列）
+            const nameCell = newRow.insertCell(2);
+            nameCell.contentEditable = true;
+            nameCell.textContent = ''; // 确保名字列为空
+            nameCell.style.minHeight = '20px'; // 设置最小高度便于点击
+            nameCell.style.cursor = 'text';
+
+            // 创建积分单元格（新行的第四个单元格，对应表头的第四列）
+            const scoreCell = newRow.insertCell(3);
+            scoreCell.contentEditable = true;
+            scoreCell.textContent = ''; // 确保积分列为空
+            scoreCell.style.minHeight = '20px'; // 设置最小高度便于点击
+            scoreCell.style.cursor = 'text';
+            scoreCell.setAttribute('data-test', 'score-cell');
+
+            // 暂时禁用类别列合并，保持表格结构一致
+            // TODO: 如果需要合并功能，可以在后续优化
+        }
+
+        // 为表格单元格添加右键菜单
+        document.getElementById('volunteer-table').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const cell = e.target.closest('td');
+            if (cell) {
+                const insertAfterBtn = document.createElement('button');
+                insertAfterBtn.className = 'insert-btn';
+                insertAfterBtn.textContent = '在下一行插入';
+                insertAfterBtn.onclick = () => {
+                    addRow('after', cell);
+                };
+
+                const deleteRowBtn = document.createElement('button');
+                deleteRowBtn.className = 'insert-btn';
+                deleteRowBtn.textContent = '删除当前行';
+                deleteRowBtn.onclick = () => {
+                    const row = cell.parentNode;
+                    const tableBody = document.getElementById('table-body');
+                    tableBody.removeChild(row);
+                    if (mergedCell) {
+                        mergedCell.rowSpan--;
+                    }
+                };
+
+                const contextMenu = document.createElement('div');
+                contextMenu.style.position = 'absolute';
+                contextMenu.style.left = e.pageX + 'px';
+                contextMenu.style.top = e.pageY + 'px';
+                contextMenu.style.backgroundColor = 'white';
+                contextMenu.style.border = '1px solid #ddd';
+                contextMenu.style.padding = '5px';
+                contextMenu.appendChild(insertAfterBtn);
+                contextMenu.appendChild(deleteRowBtn);
+
+                document.body.appendChild(contextMenu);
+
+                const removeMenu = () => {
+                    document.body.removeChild(contextMenu);
+                    document.removeEventListener('click', removeMenu);
+                };
+
+                document.addEventListener('click', removeMenu);
+            }
+        });
+
+        // 排序函数
+        function sortSummaryData(column, direction) {
+            const sortedData = [...summaryDataCache].sort((a, b) => {
+                let valueA, valueB;
+
+                if (column === 'name') {
+                    valueA = a.name.toLowerCase();
+                    valueB = b.name.toLowerCase();
+                } else if (column === 'score') {
+                    valueA = parseInt(a.total_score);
+                    valueB = parseInt(b.total_score);
+                }
+
+                if (direction === 'asc') {
+                    return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+                } else {
+                    return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+                }
+            });
+
+            renderSummaryTable(sortedData);
+            updateSortIndicators(column, direction);
+        }
+
+        // 渲染汇总表格
+        function renderSummaryTable(data) {
+            const summaryTableBody = document.getElementById('summary-table-body');
+            summaryTableBody.innerHTML = '';
+
+            data.forEach(item => {
+                const newRow = summaryTableBody.insertRow();
+                const nameCell = newRow.insertCell(0);
+                nameCell.textContent = item.name;
+                const scoreCell = newRow.insertCell(1);
+                scoreCell.textContent = item.total_score;
+                const usedScoreCell = newRow.insertCell(2);
+                usedScoreCell.contentEditable = true;
+                usedScoreCell.textContent = '0'; // 默认已使用积分为0
+            });
+        }
+
+        // 更新排序指示器
+        function updateSortIndicators(column, direction) {
+            // 清除所有排序指示器
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            // 添加当前排序指示器
+            const targetHeader = document.getElementById(`sort-${column}`);
+            if (targetHeader) {
+                targetHeader.classList.add(`sort-${direction}`);
+            }
+        }
+
+        // 加载汇总数据的函数
+        function loadSummaryData() {
+            fetch('/get_summary', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(summaryData => {
+                summaryDataCache = summaryData; // 缓存数据用于排序
+                renderSummaryTable(summaryData);
+            })
+            .catch(error => {
+                console.error('加载汇总数据失败:', error);
+                // 如果加载失败，不显示错误提示，保持表格为空
+            });
+        }
+
+        // 页面加载时初始化表格和汇总数据
+        window.onload = function() {
+            updateTable();
+            loadSummaryData(); // 加载数据库中的汇总数据
+
+            // 添加排序事件监听器
+            document.getElementById('sort-name').addEventListener('click', function() {
+                const newDirection = (currentSortColumn === 'name' && currentSortDirection === 'asc') ? 'desc' : 'asc';
+                currentSortColumn = 'name';
+                currentSortDirection = newDirection;
+                sortSummaryData('name', newDirection);
+            });
+
+            document.getElementById('sort-score').addEventListener('click', function() {
+                const newDirection = (currentSortColumn === 'score' && currentSortDirection === 'asc') ? 'desc' : 'asc';
+                currentSortColumn = 'score';
+                currentSortDirection = newDirection;
+                sortSummaryData('score', newDirection);
+            });
+        };
+
+        // 新增样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .action-btn {
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                margin-right: 10px;
+            }
+            .action-btn:hover {
+                background-color: #45a049;
+            }
+            .export-btn {
+                background-color: #2196F3;
+            }
+            .export-btn:hover {
+                background-color: #1976D2;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 提交按钮点击事件（修改后，移除提示窗口）
+        // 新增清空按钮点击事件
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // 清空表格内容
+            const activityType = document.getElementById('activity-type').value;
+            updateTable(); // 重新初始化表格
+        });
+
+        // 新增导出按钮点击事件
+        document.getElementById('export-btn').addEventListener('click', function() {
+            const exportBtn = document.getElementById('export-btn');
+            const originalText = exportBtn.textContent;
+
+            // 显示加载状态
+            exportBtn.textContent = '导出中...';
+            exportBtn.disabled = true;
+
+            // 调用后端导出接口
+            fetch('/export_db', {
+                method: 'GET',
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('导出失败');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // 创建下载链接
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'volunteer_points_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                alert('导出成功！文件已下载到本地。');
+            })
+            .catch(error => {
+                console.error('导出失败:', error);
+                alert('导出失败，请检查网络连接或联系管理员');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                exportBtn.textContent = originalText;
+                exportBtn.disabled = false;
+            });
+        });
+
+        // 提交按钮点击事件（修改后，合并重复名字并累加积分，并提交到后端）
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.textContent;
+
+            // 显示加载状态
+            submitBtn.textContent = '提交中...';
+            submitBtn.disabled = true;
+
+            const tableData = [];
+            const rows = document.getElementById('table-body').rows;
+            const activityTimeName = mergedCell ? mergedCell.textContent.trim() : '';
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+
+                // 现在所有行都有4个单元格：[活动时间(第一行可见，其他行隐藏), 类别, 名字, 积分]
+                if (row.cells.length === 4) {
+                    const categorySelect = row.cells[1].querySelector('select');
+                    const category = categorySelect ? categorySelect.value : '';
+                    const name = row.cells[2].textContent.trim();
+                    const score = row.cells[3].textContent.trim();
+
+                    if (name && score && category) {
+                        const scoreValue = parseInt(score, 10);
+                        if (!isNaN(scoreValue)) {
+                            // 按照后端期望的格式：[activity_time_name, category, name, score]
+                            tableData.push([activityTimeName, category, name, scoreValue.toString()]);
+                        }
+                    }
+                } else {
+                    // 跳过无效行
+                    continue;
+                }
+            }
+
+            if (tableData.length === 0) {
+                alert('请先输入数据！');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            // 发送数据到后端
+            fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(tableData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                }
+
+                // 提交成功后，从数据库获取汇总数据
+                return fetch('/get_summary', {
+                    method: 'GET',
+                });
+            })
+            .then(response => response.json())
+            .then(summaryData => {
+                summaryDataCache = summaryData; // 更新缓存数据
+                renderSummaryTable(summaryData);
+
+                // 如果之前有排序，保持排序状态
+                if (currentSortColumn) {
+                    sortSummaryData(currentSortColumn, currentSortDirection);
+                }
+            })
+            .catch(error => {
+                console.error('提交失败:', error);
+                alert('提交失败，请检查网络连接或联系管理员');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
