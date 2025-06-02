@@ -110,12 +110,18 @@
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
-            border-right: 1px solid #ddd; 
+            border-right: 1px solid #ddd;
         }
         #summary-table th {
             background-color: #f2f2f2;
-            font-size: 16px; 
+            font-size: 16px;
         }
+        /* 汇总表格列宽设置 */
+        #summary-table th:nth-child(1), #summary-table td:nth-child(1) { width: 25%; } /* 志愿者名字 */
+        #summary-table th:nth-child(2), #summary-table td:nth-child(2) { width: 15%; } /* 积分 */
+        #summary-table th:nth-child(3), #summary-table td:nth-child(3) { width: 20%; } /* 已使用积分 */
+        #summary-table th:nth-child(4), #summary-table td:nth-child(4) { width: 20%; } /* 已兑换课程数量 */
+        #summary-table th:nth-child(5), #summary-table td:nth-child(5) { width: 20%; } /* 剩余积分 */
         /* 新增滚动条样式 */
         .scrollable-table-container {
             max-height: 200px;
@@ -155,6 +161,9 @@
 </head>
 <body>
     <h1>斯坦福成长创新圈志愿者积分记录平台</h1>
+    <!-- 第一个表格标题 -->
+    <h2 class="table-title">活动志愿者情况输入表</h2>
+
     <div class="filter-container">
         <select id="activity-type" onchange="updateTable()">
             <option value="online">线上直播</option>
@@ -176,6 +185,25 @@
         </tbody>
     </table>
 
+    <!-- 新增积分使用记录表格 -->
+    <table id="usage-table" style="margin-top: 30px;">
+        <thead>
+            <tr>
+                <th>志愿者名字</th>
+                <th>已使用积分</th>
+                <th>兑换课程数量</th>
+            </tr>
+        </thead>
+        <tbody id="usage-table-body">
+            <!-- 初始空白行 -->
+            <tr>
+                <td contenteditable="true" style="min-height: 20px; cursor: text;"></td>
+                <td contenteditable="true" style="min-height: 20px; cursor: text;"></td>
+                <td contenteditable="true" style="min-height: 20px; cursor: text;"></td>
+            </tr>
+        </tbody>
+    </table>
+
     <!-- 仅保留提交按钮，并添加清空按钮和导出按钮 -->
     <div style="margin-left: 10%; margin-top: 20px;">
         <button id="submit-btn" class="action-btn">提交</button>
@@ -192,6 +220,8 @@
                     <th id="sort-name" class="sortable">志愿者名字 <span class="sort-arrow">↕</span></th>
                     <th id="sort-score" class="sortable">积分 <span class="sort-arrow">↕</span></th>
                     <th>已使用积分</th>
+                    <th>已兑换课程数量</th>
+                    <th>剩余积分</th>
                 </tr>
             </thead>
             <tbody id="summary-table-body">
@@ -415,6 +445,79 @@
             }
         });
 
+        // 为积分使用记录表格添加右键菜单
+        document.getElementById('usage-table').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const cell = e.target.closest('td');
+            if (cell) {
+                const insertAfterBtn = document.createElement('button');
+                insertAfterBtn.className = 'insert-btn';
+                insertAfterBtn.textContent = '在下一行插入';
+                insertAfterBtn.onclick = () => {
+                    addUsageRow('after', cell);
+                };
+
+                const deleteRowBtn = document.createElement('button');
+                deleteRowBtn.className = 'insert-btn';
+                deleteRowBtn.textContent = '删除当前行';
+                deleteRowBtn.onclick = () => {
+                    const row = cell.parentNode;
+                    const tableBody = document.getElementById('usage-table-body');
+                    // 确保至少保留一行
+                    if (tableBody.rows.length > 1) {
+                        tableBody.removeChild(row);
+                    } else {
+                        alert('至少需要保留一行！');
+                    }
+                };
+
+                const contextMenu = document.createElement('div');
+                contextMenu.style.position = 'absolute';
+                contextMenu.style.left = e.pageX + 'px';
+                contextMenu.style.top = e.pageY + 'px';
+                contextMenu.style.backgroundColor = 'white';
+                contextMenu.style.border = '1px solid #ddd';
+                contextMenu.style.padding = '5px';
+                contextMenu.style.zIndex = '1000';
+                contextMenu.appendChild(insertAfterBtn);
+                contextMenu.appendChild(deleteRowBtn);
+
+                document.body.appendChild(contextMenu);
+
+                const removeMenu = () => {
+                    if (document.body.contains(contextMenu)) {
+                        document.body.removeChild(contextMenu);
+                    }
+                    document.removeEventListener('click', removeMenu);
+                };
+
+                document.addEventListener('click', removeMenu);
+            }
+        });
+
+        // 添加积分使用记录表格行的函数
+        function addUsageRow(position = 'after', selectedCell = null) {
+            const tableBody = document.getElementById('usage-table-body');
+            let newRow;
+
+            if (selectedCell) {
+                const selectedRow = selectedCell.parentNode;
+                const rowIndex = Array.from(tableBody.rows).indexOf(selectedRow);
+                newRow = tableBody.insertRow(position === 'before' ? rowIndex : rowIndex + 1);
+            } else {
+                newRow = tableBody.insertRow();
+            }
+
+            // 创建三个可编辑单元格
+            for (let i = 0; i < 3; i++) {
+                const cell = newRow.insertCell(i);
+                cell.contentEditable = true;
+                cell.style.minHeight = '20px';
+                cell.style.cursor = 'text';
+                cell.textContent = '';
+            }
+        }
+
         // 排序函数
         function sortSummaryData(column, direction) {
             const sortedData = [...summaryDataCache].sort((a, b) => {
@@ -446,13 +549,75 @@
 
             data.forEach(item => {
                 const newRow = summaryTableBody.insertRow();
+
+                // 志愿者名字
                 const nameCell = newRow.insertCell(0);
                 nameCell.textContent = item.name;
+
+                // 总积分
                 const scoreCell = newRow.insertCell(1);
                 scoreCell.textContent = item.total_score;
+
+                // 已使用积分
                 const usedScoreCell = newRow.insertCell(2);
                 usedScoreCell.contentEditable = true;
                 usedScoreCell.textContent = '0'; // 默认已使用积分为0
+
+                // 已兑换课程数量
+                const courseCountCell = newRow.insertCell(3);
+                courseCountCell.textContent = '0'; // 默认已兑换课程数量为0
+
+                // 剩余积分
+                const remainingScoreCell = newRow.insertCell(4);
+                remainingScoreCell.textContent = item.total_score; // 初始剩余积分等于总积分
+
+                // 为已使用积分单元格添加输入事件监听器，自动计算剩余积分
+                usedScoreCell.addEventListener('input', function() {
+                    updateRemainingScore(newRow);
+                });
+            });
+        }
+
+        // 更新剩余积分的函数
+        function updateRemainingScore(row) {
+            const totalScore = parseInt(row.cells[1].textContent) || 0; // 总积分
+            const usedScore = parseInt(row.cells[2].textContent) || 0;  // 已使用积分
+            const remainingScore = totalScore - usedScore; // 计算剩余积分
+
+            row.cells[4].textContent = remainingScore; // 更新剩余积分列
+        }
+
+        // 从数据库获取并同步积分使用情况到汇总表格
+        function syncUsageDataFromDatabase() {
+            fetch('/get_usage_summary', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(usageData => {
+                const summaryTableBody = document.getElementById('summary-table-body');
+                const summaryRows = summaryTableBody.rows;
+
+                // 遍历汇总表格的每一行
+                for (let i = 0; i < summaryRows.length; i++) {
+                    const summaryRow = summaryRows[i];
+                    const volunteerName = summaryRow.cells[0].textContent.trim();
+
+                    // 在使用数据中查找对应的志愿者
+                    const usageRecord = usageData.find(record => record.name === volunteerName);
+                    if (usageRecord) {
+                        // 更新已使用积分列（显示累加后的结果）
+                        summaryRow.cells[2].textContent = usageRecord.used_points || 0;
+
+                        // 更新已兑换课程数量列（显示累加后的结果）
+                        summaryRow.cells[3].textContent = usageRecord.course_count || 0;
+
+                        // 重新计算剩余积分
+                        updateRemainingScore(summaryRow);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('获取积分使用情况失败:', error);
             });
         }
 
@@ -479,6 +644,9 @@
             .then(summaryData => {
                 summaryDataCache = summaryData; // 缓存数据用于排序
                 renderSummaryTable(summaryData);
+
+                // 加载积分使用情况数据
+                syncUsageDataFromDatabase();
             })
             .catch(error => {
                 console.error('加载汇总数据失败:', error);
@@ -534,10 +702,25 @@
         // 提交按钮点击事件（修改后，移除提示窗口）
         // 新增清空按钮点击事件
         document.getElementById('clear-btn').addEventListener('click', function() {
+            // 清空第一个表格
             const tableBody = document.getElementById('table-body');
             tableBody.innerHTML = ''; // 清空表格内容
             const activityType = document.getElementById('activity-type').value;
             updateTable(); // 重新初始化表格
+
+            // 清空第二个表格（积分使用记录表格）
+            const usageTableBody = document.getElementById('usage-table-body');
+            usageTableBody.innerHTML = '';
+
+            // 重新添加一个空白行
+            const newRow = usageTableBody.insertRow();
+            for (let i = 0; i < 3; i++) {
+                const cell = newRow.insertCell(i);
+                cell.contentEditable = true;
+                cell.style.minHeight = '20px';
+                cell.style.cursor = 'text';
+                cell.textContent = '';
+            }
         });
 
         // 导出活动总览表按钮点击事件
@@ -637,7 +820,11 @@
             submitBtn.textContent = '提交中...';
             submitBtn.disabled = true;
 
-            const tableData = [];
+            // 获取活动时间与名称
+            const mergedCell = document.querySelector('#table-body tr:first-child td[rowspan]');
+
+            // 收集活动数据（第一个表格）
+            const activityData = [];
             const rows = document.getElementById('table-body').rows;
             const activityTimeName = mergedCell ? mergedCell.textContent.trim() : '';
             const activityTypeValue = document.getElementById('activity-type').value; // 获取活动类型值
@@ -659,7 +846,7 @@
                         const scoreValue = parseInt(score, 10);
                         if (!isNaN(scoreValue)) {
                             // 新格式：[activity_type, activity_time_name, category, name, score]
-                            tableData.push([activityType, activityTimeName, category, name, scoreValue.toString()]);
+                            activityData.push([activityType, activityTimeName, category, name, scoreValue.toString()]);
                         }
                     }
                 } else {
@@ -668,7 +855,24 @@
                 }
             }
 
-            if (tableData.length === 0) {
+            // 收集积分使用数据（第二个表格）
+            const usageData = [];
+            const usageRows = document.getElementById('usage-table-body').rows;
+
+            for (let i = 0; i < usageRows.length; i++) {
+                const row = usageRows[i];
+                if (row.cells.length === 3) {
+                    const name = row.cells[0].textContent.trim();
+                    const usedPoints = row.cells[1].textContent.trim();
+                    const courseCount = row.cells[2].textContent.trim();
+
+                    if (name && usedPoints && courseCount) {
+                        usageData.push([name, usedPoints, courseCount]);
+                    }
+                }
+            }
+
+            if (activityData.length === 0 && usageData.length === 0) {
                 alert('请先输入数据！');
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
@@ -681,7 +885,10 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(tableData)
+                body: JSON.stringify({
+                    activityData: activityData,
+                    usageData: usageData
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -698,6 +905,9 @@
             .then(summaryData => {
                 summaryDataCache = summaryData; // 更新缓存数据
                 renderSummaryTable(summaryData);
+
+                // 从数据库获取累加后的积分使用情况并同步到汇总表格
+                syncUsageDataFromDatabase();
 
                 // 如果之前有排序，保持排序状态
                 if (currentSortColumn) {

@@ -93,6 +93,17 @@ def init_db():
     c.execute('UPDATE volunteer_points SET activity_type = "线下活动" WHERE activity_type = "offline"')
     c.execute('UPDATE volunteer_points SET activity_type = "线上直播" WHERE activity_type = "online"')
 
+    # 创建志愿者积分使用情况表
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS volunteer_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            total_points INTEGER DEFAULT 0,
+            used_points INTEGER DEFAULT 0,
+            course_count INTEGER DEFAULT 0
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -108,7 +119,10 @@ def submit():
     try:
         conn = sqlite3.connect('volunteer_points.db')
         c = conn.cursor()
-        for row in data:
+
+        # 处理活动数据（第一个表格）
+        activity_data = data.get('activityData', [])
+        for row in activity_data:
             if len(row) == 5:
                 # 新格式：[activity_type, activity_time_name, category, name, score]
                 activity_type = row[0]
@@ -129,6 +143,51 @@ def submit():
                     INSERT INTO volunteer_points (activity_type, activity_time_name, category, name, score)
                     VALUES (?,?,?,?,?)
                 ''', ['线下活动'] + row)
+
+        # 处理积分使用数据（第二个表格）
+        usage_data = data.get('usageData', [])
+        for row in usage_data:
+            if len(row) == 3:
+                # 格式：[name, used_points, course_count]
+                name, used_points, course_count = row
+
+                # 计算该志愿者的总积分
+                c.execute('''
+                    SELECT SUM(CAST(score AS INTEGER))
+                    FROM volunteer_points
+                    WHERE name = ?
+                ''', (name,))
+                result = c.fetchone()
+                total_points = result[0] if result[0] else 0
+
+                # 检查是否已存在该志愿者的记录
+                c.execute('''
+                    SELECT used_points, course_count
+                    FROM volunteer_usage
+                    WHERE name = ?
+                ''', (name,))
+                existing_record = c.fetchone()
+
+                if existing_record:
+                    # 如果存在记录，累加已使用积分和兑换课程数量
+                    existing_used_points = existing_record[0] or 0
+                    existing_course_count = existing_record[1] or 0
+
+                    new_used_points = existing_used_points + (int(used_points) if used_points else 0)
+                    new_course_count = existing_course_count + (int(course_count) if course_count else 0)
+
+                    c.execute('''
+                        UPDATE volunteer_usage
+                        SET total_points = ?, used_points = ?, course_count = ?
+                        WHERE name = ?
+                    ''', (total_points, new_used_points, new_course_count, name))
+                else:
+                    # 如果不存在记录，创建新记录
+                    c.execute('''
+                        INSERT INTO volunteer_usage (name, total_points, used_points, course_count)
+                        VALUES (?, ?, ?, ?)
+                    ''', (name, total_points, int(used_points) if used_points else 0, int(course_count) if course_count else 0))
+
         conn.commit()
         return jsonify({"message": "提交成功"}), 200
     except Exception as e:
@@ -270,6 +329,38 @@ def export_db():
 
     except Exception as e:
         return jsonify({"message": f"导出失败: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# 获取志愿者积分使用情况数据
+@app.route('/get_usage_summary', methods=['GET'])
+def get_usage_summary():
+    try:
+        conn = sqlite3.connect('volunteer_points.db')
+        c = conn.cursor()
+
+        # 查询所有志愿者的积分使用情况
+        c.execute('''
+            SELECT name, total_points, used_points, course_count
+            FROM volunteer_usage
+            ORDER BY name
+        ''')
+        usage_data = c.fetchall()
+
+        # 转换为字典格式
+        result = []
+        for row in usage_data:
+            result.append({
+                'name': row[0],
+                'total_points': row[1],
+                'used_points': row[2],
+                'course_count': row[3]
+            })
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": f"获取数据失败: {str(e)}"}), 500
     finally:
         if conn:
             conn.close()
