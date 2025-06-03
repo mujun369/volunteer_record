@@ -372,8 +372,10 @@
     </div>
 
     <script>
-        const offlineCategories = ['宣发', '签到', '写稿', '场务', '剪辑'];
-        const onlineCategories = ['直播助手', '写稿', '视频剪辑', '海报'];
+        // 添加一个版本变量或时间戳
+        const VERSION = Date.now();
+        const offlineCategories = ['海报', '宣发', '签到', '写稿', '场务'];
+        const onlineCategories = ['海报', '宣发', '直播助手', '写稿', '视频剪辑'];
         let mergedCell = null;
 
         // 排序相关变量
