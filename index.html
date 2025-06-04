@@ -2,10 +2,43 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=templates/volunteer_points_platform.html">
     <title>斯坦福成长创新圈志愿者积分记录平台</title>
+    <!-- 使用meta标签重定向 - 最可靠的方法 -->
+    <meta http-equiv="refresh" content="0; url=templates/volunteer_points_platform.html">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .link {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <p>如果您没有被自动重定向，请<a href="templates/volunteer_points_platform.html">点击这里</a>。</p>
+    <div class="container">
+        <h1>斯坦福成长创新圈志愿者积分记录平台</h1>
+        <p>正在跳转到主页面...</p>
+        <p>如果您没有被自动重定向，请<a class="link" href="templates/volunteer_points_platform.html">点击这里</a>访问主页面。</p>
+    </div>
+    
+    <!-- 使用JavaScript重定向作为备份 -->
+    <script>
+        // 使用setTimeout确保页面有时间加载
+        setTimeout(function() {
+            window.location.href = "templates/volunteer_points_platform.html";
+        }, 100);
+    </script>
 </body>
 </html>
