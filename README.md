@@ -1,36 +1,104 @@
 # 志愿者积分记录平台
 
-## 部署说明
+这是一个用于记录和管理志愿者积分的Web平台。
 
-### 本地开发
+## 功能特性
+
+- 志愿者活动记录
+- 积分计算和汇总
+- 积分使用记录
+- 数据导出功能
+- 志愿者积分查询
+
+## 技术栈
+
+- 前端：HTML, CSS, JavaScript
+- 后端：Python Flask
+- 数据库：SQLite/内存存储
+
+## 功能特性
+
+- 志愿者活动记录
+- 积分计算和汇总
+- 积分使用记录
+- 数据导出功能
+- 志愿者积分查询
+
+## 技术栈
+
+- 前端：HTML, CSS, JavaScript
+- 后端：Python Flask
+- 数据库：内存存储 (Vercel部署)
+- 部署：Vercel
+
+## 访问地址
+
+- 主平台：https://volunteer-record.vercel.app/templates/volunteer_points_platform.html
+- API测试：https://volunteer-record.vercel.app/templates/test.html
+- 首页：https://volunteer-record.vercel.app/
+
+## 本地运行
 
 1. 安装依赖：
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 2. 运行应用：
-   ```
-   python app_lite.py
-   ```
+```bash
+python app_lite.py
+```
 
-3. 访问应用：
-   ```
-   http://localhost:5001
-   ```
+3. 访问 http://localhost:5000
 
-### Render 部署
+## 解决方案
 
-1. 连接 GitHub 仓库到 Render
-2. 创建新的 Web Service
-3. 使用以下设置：
-   - Build Command: `./build.sh`
-   - Start Command: `./start.sh`
+由于Vercel部署遇到网络连接问题，我创建了一个简化的单文件解决方案：
 
-## 故障排除
+### 新的单文件版本 (`main.py`)
 
-如果部署失败，请检查以下内容：
+- ✅ 包含完整的Web界面和API
+- ✅ 简化的HTML模板，内嵌在Python文件中
+- ✅ 所有功能都在一个文件中，便于部署
+- ✅ 本地测试完全正常
 
-1. 确保 `requirements.txt` 不包含 NumPy 或 Pandas
-2. 检查 Render 日志中的错误信息
-3. 访问 `/health` 端点检查应用状态
+### 本地测试
+
+1. 运行单文件版本：
+```bash
+python3 main.py
+```
+
+2. 访问 http://127.0.0.1:5000
+
+3. 测试功能：
+   - API健康检查
+   - 添加志愿者记录
+   - 查看积分汇总
+
+### 部署建议
+
+由于网络连接问题，建议：
+
+1. **手动部署到Vercel**：
+   - 将 `main.py` 作为主要文件
+   - 使用简化的 `vercel.json` 配置
+   - 确保 `requirements.txt` 只包含 `flask`
+
+2. **替代部署方案**：
+   - 使用 Heroku
+   - 使用 Railway
+   - 使用 Render
+
+## 测试API
+
+运行测试脚本：
+```bash
+python deploy_test.py https://volunteer-record.vercel.app
+```
+
+或者本地测试：
+```bash
+python3 main.py
+# 然后访问 http://127.0.0.1:5000
+```
