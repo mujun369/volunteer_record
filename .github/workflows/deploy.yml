@@ -16,6 +16,13 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v3
       
+    - name: Create frontend directory and copy files
+      run: |
+        mkdir -p frontend
+        cp templates/volunteer_points_platform.html frontend/index.html
+        # 确保README.md不会被渲染为首页
+        touch frontend/.nojekyll
+    
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v2
       with:
@@ -24,6 +31,8 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
 permissions:
   contents: read
