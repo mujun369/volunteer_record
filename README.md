@@ -31,11 +31,24 @@
 - 数据库：内存存储 (Vercel部署)
 - 部署：Vercel
 
+## 部署架构
+
+本项目采用前后端分离的部署方式：
+
+- **前端**：部署在GitHub Pages，提供静态网页服务
+- **后端**：部署在Vercel，提供API服务
+
 ## 访问地址
 
-- 主平台：https://volunteer-record.vercel.app/templates/volunteer_points_platform.html
-- API测试：https://volunteer-record.vercel.app/templates/test.html
-- 首页：https://volunteer-record.vercel.app/
+- **GitHub Pages前端**：https://mujun369.github.io/volunteer_record/
+- **Vercel后端API**：https://volunteerrecord.vercel.app/
+- **Vercel完整应用**：https://volunteerrecord.vercel.app/
+
+## 部署状态
+
+✅ **前端部署**：GitHub Actions自动部署到GitHub Pages
+✅ **后端部署**：Vercel自动部署Python Flask API
+✅ **跨域配置**：前端可以正常调用后端API
 
 ## 本地运行
 

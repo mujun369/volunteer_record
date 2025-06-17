@@ -19,9 +19,15 @@ jobs:
     - name: Create frontend directory and copy files
       run: |
         mkdir -p frontend
+        # 直接复制主要的HTML文件作为index.html
         cp templates/volunteer_points_platform.html frontend/index.html
         # 确保README.md不会被渲染为首页
         touch frontend/.nojekyll
+        # 复制任何必要的CSS和JavaScript文件
+        cp -r templates/css frontend/ 2>/dev/null || :
+        cp -r templates/js frontend/ 2>/dev/null || :
+        echo "Files copied successfully"
+        ls -la frontend/
     
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v2
