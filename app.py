@@ -162,7 +162,7 @@ def get_summary():
         summary = {}
         for record in result.data:
             name = record['name']
-            score = record['score']
+            score = int(record['score']) if record['score'] is not None else 0
             summary[name] = summary.get(name, 0) + score
 
         result_list = [{"name": name, "total_score": score} for name, score in summary.items()]
@@ -175,11 +175,12 @@ def get_summary():
 @app.route('/api/get_usage_summary')
 def get_usage_summary():
     try:
-        if not USE_SUPABASE or not supabase:
+        client = supabase_admin or supabase
+        if not USE_SUPABASE or not client:
             return jsonify({"error": "数据库连接失败"}), 500
 
         # 从Supabase获取数据
-        result = supabase.table('volunteer_usage').select('name, used_points, course_count').execute()
+        result = client.table('volunteer_usage').select('name, used_points, course_count').execute()
         logger.info(f"从Supabase获取到 {len(result.data)} 条使用记录")
 
         usage_summary = {}
@@ -215,14 +216,15 @@ def get_usage_summary():
 def export_db():
     """导出活动总览表"""
     try:
-        if not USE_SUPABASE or not supabase:
+        client = supabase_admin or supabase
+        if not USE_SUPABASE or not client:
             return jsonify({"error": "数据库连接失败"}), 500
 
         # 创建Excel文件
         import pandas as pd
 
         # 从Supabase获取数据
-        result = supabase.table('volunteer_points').select('*').execute()
+        result = client.table('volunteer_points').select('*').execute()
         data = result.data
         logger.info(f"导出数据: 获取到 {len(data)} 条记录")
 
@@ -265,19 +267,20 @@ def export_db():
 def export_volunteer_summary():
     """导出志愿者积分总表"""
     try:
-        if not USE_SUPABASE or not supabase:
+        client = supabase_admin or supabase
+        if not USE_SUPABASE or not client:
             return jsonify({"error": "数据库连接失败"}), 500
 
         import pandas as pd
 
         # 从Supabase获取数据并汇总
-        result = supabase.table('volunteer_points').select('name, score').execute()
+        result = client.table('volunteer_points').select('name, score').execute()
         logger.info(f"导出汇总数据: 获取到 {len(result.data)} 条记录")
 
         summary = {}
         for record in result.data:
             name = record['name']
-            score = record['score']
+            score = int(record['score']) if record['score'] is not None else 0
             summary[name] = summary.get(name, 0) + score
 
         if not summary:
