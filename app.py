@@ -1,6 +1,10 @@
 import logging
 import os
 import sys
+import io
+from datetime import datetime
+from flask import Flask, request, jsonify, render_template, send_file
+from flask_cors import CORS
 
 # 配置日志
 logging.basicConfig(
@@ -21,26 +25,32 @@ logger.info(f"__file__: {__file__}")
 logger.info(f"模块搜索路径: {sys.path}")
 logger.info("=" * 50)
 
-def get_environment():
-    """安全地获取环境类型"""
-    if app.debug:
-        return "development"
-    return "production"
-
-from flask import Flask, request, jsonify, render_template
-
 app = Flask(__name__)
+CORS(app)
 
-# 内存存储
+# Supabase配置
+try:
+    from supabase import create_client, Client
+    
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_ANON_KEY')
+    
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Supabase客户端初始化成功")
+        USE_SUPABASE = True
+    else:
+        logger.warning("Supabase环境变量未设置，使用内存存储")
+        USE_SUPABASE = False
+        supabase = None
+except ImportError:
+    logger.warning("Supabase包未安装，使用内存存储")
+    USE_SUPABASE = False
+    supabase = None
+
+# 内存存储（备用）
 volunteer_data = []
 usage_data = []
-
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 @app.route('/')
 def index():
@@ -48,7 +58,8 @@ def index():
 
 @app.route('/api/health')
 def health():
-    return jsonify({"status": "healthy", "database": "connected"})
+    db_status = "supabase" if USE_SUPABASE else "memory"
+    return jsonify({"status": "healthy", "database": db_status})
 
 @app.route('/api/submit', methods=['POST'])
 def submit():
@@ -57,45 +68,94 @@ def submit():
         if not data:
             return jsonify({"success": False, "message": "无效的数据格式"}), 400
         
-        if 'activityData' in data and data['activityData']:
-            volunteer_data.extend(data['activityData'])
+        activity_count = 0
+        usage_count = 0
         
+        # 处理活动数据
+        if 'activityData' in data and data['activityData']:
+            if USE_SUPABASE and supabase:
+                # 保存到Supabase
+                for row in data['activityData']:
+                    if len(row) >= 5:
+                        result = supabase.table('volunteer_points').insert({
+                            'activity_type': row[0],
+                            'activity_time_name': row[1],
+                            'category': row[2],
+                            'name': row[3],
+                            'score': int(row[4]) if str(row[4]).isdigit() else 0
+                        }).execute()
+                        if result.data:
+                            activity_count += 1
+            else:
+                # 保存到内存
+                volunteer_data.extend(data['activityData'])
+                activity_count = len(data['activityData'])
+        
+        # 处理使用数据
         if 'usageData' in data and data['usageData']:
-            usage_data.extend(data['usageData'])
+            if USE_SUPABASE and supabase:
+                # 保存到Supabase
+                for row in data['usageData']:
+                    if len(row) >= 3:
+                        result = supabase.table('volunteer_usage').insert({
+                            'name': row[0],
+                            'used_points': int(row[1]) if str(row[1]).isdigit() else 0,
+                            'course_count': int(row[2]) if str(row[2]).isdigit() else 0
+                        }).execute()
+                        if result.data:
+                            usage_count += 1
+            else:
+                # 保存到内存
+                usage_data.extend(data['usageData'])
+                usage_count = len(data['usageData'])
         
         return jsonify({
             "success": True,
             "message": "数据提交成功",
-            "activity_count": len(data.get('activityData', [])),
-            "usage_count": len(data.get('usageData', []))
+            "activity_count": activity_count,
+            "usage_count": usage_count
         })
     except Exception as e:
+        logger.error(f"提交数据失败: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/get_summary')
 def get_summary():
     try:
-        summary = {}
-        for record in volunteer_data:
-            if len(record) >= 5:
-                name = record[3]
-                score = int(record[4]) if str(record[4]).isdigit() else 0
+        if USE_SUPABASE and supabase:
+            # 从Supabase获取数据
+            result = supabase.table('volunteer_points').select('name, score').execute()
+            summary = {}
+            for record in result.data:
+                name = record['name']
+                score = record['score']
                 summary[name] = summary.get(name, 0) + score
+        else:
+            # 从内存获取数据
+            summary = {}
+            for record in volunteer_data:
+                if len(record) >= 5:
+                    name = record[3]
+                    score = int(record[4]) if str(record[4]).isdigit() else 0
+                    summary[name] = summary.get(name, 0) + score
         
         result = [{"name": name, "total_score": score} for name, score in summary.items()]
         return jsonify(result)
     except Exception as e:
+        logger.error(f"获取汇总数据失败: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/get_usage_summary')
 def get_usage_summary():
     try:
-        usage_summary = {}
-        for record in usage_data:
-            if len(record) >= 3:
-                name = record[0]
-                used_points = int(record[1]) if str(record[1]).isdigit() else 0
-                course_count = int(record[2]) if str(record[2]).isdigit() else 0
+        if USE_SUPABASE and supabase:
+            # 从Supabase获取数据
+            result = supabase.table('volunteer_usage').select('name, used_points, course_count').execute()
+            usage_summary = {}
+            for record in result.data:
+                name = record['name']
+                used_points = record['used_points']
+                course_count = record['course_count']
                 
                 if name in usage_summary:
                     usage_summary[name]['used_points'] += used_points
@@ -105,6 +165,23 @@ def get_usage_summary():
                         'used_points': used_points,
                         'course_count': course_count
                     }
+        else:
+            # 从内存获取数据
+            usage_summary = {}
+            for record in usage_data:
+                if len(record) >= 3:
+                    name = record[0]
+                    used_points = int(record[1]) if str(record[1]).isdigit() else 0
+                    course_count = int(record[2]) if str(record[2]).isdigit() else 0
+                    
+                    if name in usage_summary:
+                        usage_summary[name]['used_points'] += used_points
+                        usage_summary[name]['course_count'] += course_count
+                    else:
+                        usage_summary[name] = {
+                            'used_points': used_points,
+                            'course_count': course_count
+                        }
         
         result = [
             {
@@ -116,11 +193,105 @@ def get_usage_summary():
         ]
         return jsonify(result)
     except Exception as e:
+        logger.error(f"获取使用汇总数据失败: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/export_db')
+def export_db():
+    """导出活动总览表"""
+    try:
+        # 创建Excel文件
+        import pandas as pd
+        
+        if USE_SUPABASE and supabase:
+            # 从Supabase获取数据
+            result = supabase.table('volunteer_points').select('*').execute()
+            data = result.data
+            df = pd.DataFrame(data)
+            if not df.empty:
+                # 重命名列为中文
+                df = df.rename(columns={
+                    'activity_type': '活动类型',
+                    'activity_time_name': '活动时间与名称',
+                    'category': '类别',
+                    'name': '姓名',
+                    'score': '积分'
+                })
+        else:
+            # 从内存获取数据
+            columns = ['活动类型', '活动时间与名称', '类别', '姓名', '积分']
+            df = pd.DataFrame(volunteer_data, columns=columns)
+        
+        if df.empty:
+            return jsonify({"error": "没有数据可导出"}), 400
+        
+        # 创建Excel文件
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='活动总览', index=False)
+        
+        output.seek(0)
+        filename = f'volunteer_activity_overview_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logger.error(f"导出活动总览失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
-
-
+@app.route('/api/export_volunteer_summary')
+def export_volunteer_summary():
+    """导出志愿者积分总表"""
+    try:
+        import pandas as pd
+        
+        if USE_SUPABASE and supabase:
+            # 从Supabase获取数据并汇总
+            result = supabase.table('volunteer_points').select('name, score').execute()
+            summary = {}
+            for record in result.data:
+                name = record['name']
+                score = record['score']
+                summary[name] = summary.get(name, 0) + score
+        else:
+            # 从内存获取数据并汇总
+            summary = {}
+            for record in volunteer_data:
+                if len(record) >= 5:
+                    name = record[3]
+                    score = int(record[4]) if str(record[4]).isdigit() else 0
+                    summary[name] = summary.get(name, 0) + score
+        
+        if not summary:
+            return jsonify({"error": "没有数据可导出"}), 400
+        
+        # 创建DataFrame
+        df = pd.DataFrame([
+            {"姓名": name, "总积分": score} 
+            for name, score in summary.items()
+        ])
+        
+        # 创建Excel文件
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='志愿者积分总表', index=False)
+        
+        output.seek(0)
+        filename = f'volunteer_points_summary_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logger.error(f"导出志愿者积分总表失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.errorhandler(404)
 def page_not_found(e):
