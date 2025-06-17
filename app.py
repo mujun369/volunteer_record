@@ -31,10 +31,11 @@ CORS(app)
 # Supabase配置
 try:
     from supabase import create_client, Client
-    
+
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
-    SUPABASE_KEY = os.environ.get('SUPABASE_ANON_KEY')
-    
+    # 优先使用服务密钥，如果没有则使用匿名密钥
+    SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_KEY') or os.environ.get('SUPABASE_ANON_KEY')
+
     if SUPABASE_URL and SUPABASE_KEY:
         supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
         logger.info("Supabase客户端初始化成功")
@@ -74,18 +75,24 @@ def submit():
         # 处理活动数据
         if 'activityData' in data and data['activityData']:
             if USE_SUPABASE and supabase:
-                # 保存到Supabase
-                for row in data['activityData']:
-                    if len(row) >= 5:
-                        result = supabase.table('volunteer_points').insert({
-                            'activity_type': row[0],
-                            'activity_time_name': row[1],
-                            'category': row[2],
-                            'name': row[3],
-                            'score': int(row[4]) if str(row[4]).isdigit() else 0
-                        }).execute()
-                        if result.data:
-                            activity_count += 1
+                try:
+                    # 保存到Supabase
+                    for row in data['activityData']:
+                        if len(row) >= 5:
+                            result = supabase.table('volunteer_points').insert({
+                                'activity_type': row[0],
+                                'activity_time_name': row[1],
+                                'category': row[2],
+                                'name': row[3],
+                                'score': int(row[4]) if str(row[4]).isdigit() else 0
+                            }).execute()
+                            if result.data:
+                                activity_count += 1
+                except Exception as e:
+                    logger.warning(f"Supabase保存失败，回退到内存存储: {str(e)}")
+                    # 回退到内存存储
+                    volunteer_data.extend(data['activityData'])
+                    activity_count = len(data['activityData'])
             else:
                 # 保存到内存
                 volunteer_data.extend(data['activityData'])
@@ -94,16 +101,22 @@ def submit():
         # 处理使用数据
         if 'usageData' in data and data['usageData']:
             if USE_SUPABASE and supabase:
-                # 保存到Supabase
-                for row in data['usageData']:
-                    if len(row) >= 3:
-                        result = supabase.table('volunteer_usage').insert({
-                            'name': row[0],
-                            'used_points': int(row[1]) if str(row[1]).isdigit() else 0,
-                            'course_count': int(row[2]) if str(row[2]).isdigit() else 0
-                        }).execute()
-                        if result.data:
-                            usage_count += 1
+                try:
+                    # 保存到Supabase
+                    for row in data['usageData']:
+                        if len(row) >= 3:
+                            result = supabase.table('volunteer_usage').insert({
+                                'name': row[0],
+                                'used_points': int(row[1]) if str(row[1]).isdigit() else 0,
+                                'course_count': int(row[2]) if str(row[2]).isdigit() else 0
+                            }).execute()
+                            if result.data:
+                                usage_count += 1
+                except Exception as e:
+                    logger.warning(f"Supabase保存使用数据失败，回退到内存存储: {str(e)}")
+                    # 回退到内存存储
+                    usage_data.extend(data['usageData'])
+                    usage_count = len(data['usageData'])
             else:
                 # 保存到内存
                 usage_data.extend(data['usageData'])
