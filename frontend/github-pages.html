@@ -373,25 +373,8 @@
 
     <script>
         // 添加一个版本变量或时间戳
-        // 检测环境并设置API基础URL
-        function getApiBaseUrl() {
-            const hostname = window.location.hostname;
-
-            // 本地开发环境
-            if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-                return '';
-            }
-
-            // GitHub Pages环境
-            if (hostname.includes('github.io')) {
-                return 'https://volunteerrecord.vercel.app';
-            }
-
-            // Vercel环境或其他生产环境
-            return '';
-        }
-
-        const API_BASE_URL = getApiBaseUrl();
+        // GitHub Pages版本 - 强制使用Vercel API
+        const API_BASE_URL = 'https://volunteerrecord.vercel.app';
         const VERSION = Date.now();
         const offlineCategories = ['海报', '宣发', '签到', '写稿', '场务'];
         const onlineCategories = ['海报', '宣发', '直播助手', '写稿', '视频剪辑'];
