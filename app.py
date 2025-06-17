@@ -104,6 +104,7 @@ def submit():
                         }).execute()
                         if result.data:
                             activity_count += 1
+                            logger.info(f"成功保存活动数据: {row}")
                         else:
                             errors.append(f"保存活动数据失败: {row}")
                     except Exception as e:
@@ -123,6 +124,7 @@ def submit():
                         }).execute()
                         if result.data:
                             usage_count += 1
+                            logger.info(f"成功保存使用数据: {row}")
                         else:
                             errors.append(f"保存使用数据失败: {row}")
                     except Exception as e:
@@ -175,12 +177,11 @@ def get_summary():
 @app.route('/api/get_usage_summary')
 def get_usage_summary():
     try:
-        client = supabase_admin or supabase
-        if not USE_SUPABASE or not client:
+        if not USE_SUPABASE or not supabase:
             return jsonify({"error": "数据库连接失败"}), 500
 
         # 从Supabase获取数据
-        result = client.table('volunteer_usage').select('name, used_points, course_count').execute()
+        result = supabase.table('volunteer_usage').select('name, used_points, course_count').execute()
         logger.info(f"从Supabase获取到 {len(result.data)} 条使用记录")
 
         usage_summary = {}
@@ -212,19 +213,74 @@ def get_usage_summary():
         logger.error(f"获取使用汇总数据失败: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/get_complete_summary')
+def get_complete_summary():
+    """获取完整的汇总数据，包括积分、已使用积分和剩余积分"""
+    try:
+        if not USE_SUPABASE or not supabase:
+            return jsonify({"error": "数据库连接失败"}), 500
+
+        # 获取积分数据
+        points_result = supabase.table('volunteer_points').select('name, score').execute()
+        points_summary = {}
+        for record in points_result.data:
+            name = record['name']
+            score = int(record['score']) if record['score'] is not None else 0
+            points_summary[name] = points_summary.get(name, 0) + score
+
+        # 获取使用数据
+        usage_result = supabase.table('volunteer_usage').select('name, used_points, course_count').execute()
+        usage_summary = {}
+        for record in usage_result.data:
+            name = record['name']
+            used_points = int(record['used_points']) if record['used_points'] is not None else 0
+            course_count = int(record['course_count']) if record['course_count'] is not None else 0
+
+            if name in usage_summary:
+                usage_summary[name]['used_points'] += used_points
+                usage_summary[name]['course_count'] += course_count
+            else:
+                usage_summary[name] = {
+                    'used_points': used_points,
+                    'course_count': course_count
+                }
+
+        # 合并数据
+        all_names = set(points_summary.keys()) | set(usage_summary.keys())
+        result_list = []
+
+        for name in all_names:
+            total_score = points_summary.get(name, 0)
+            used_points = usage_summary.get(name, {}).get('used_points', 0)
+            course_count = usage_summary.get(name, {}).get('course_count', 0)
+            remaining_score = total_score - used_points
+
+            result_list.append({
+                "name": name,
+                "total_score": total_score,
+                "used_points": used_points,
+                "course_count": course_count,
+                "remaining_score": remaining_score
+            })
+
+        logger.info(f"返回完整汇总数据: {len(result_list)} 条记录")
+        return jsonify(result_list)
+    except Exception as e:
+        logger.error(f"获取完整汇总数据失败: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/export_db')
 def export_db():
     """导出活动总览表"""
     try:
-        client = supabase_admin or supabase
-        if not USE_SUPABASE or not client:
+        if not USE_SUPABASE or not supabase:
             return jsonify({"error": "数据库连接失败"}), 500
 
         # 创建Excel文件
         import pandas as pd
 
         # 从Supabase获取数据
-        result = client.table('volunteer_points').select('*').execute()
+        result = supabase.table('volunteer_points').select('*').execute()
         data = result.data
         logger.info(f"导出数据: 获取到 {len(data)} 条记录")
 
@@ -267,14 +323,13 @@ def export_db():
 def export_volunteer_summary():
     """导出志愿者积分总表"""
     try:
-        client = supabase_admin or supabase
-        if not USE_SUPABASE or not client:
+        if not USE_SUPABASE or not supabase:
             return jsonify({"error": "数据库连接失败"}), 500
 
         import pandas as pd
 
         # 从Supabase获取数据并汇总
-        result = client.table('volunteer_points').select('name, score').execute()
+        result = supabase.table('volunteer_points').select('name, score').execute()
         logger.info(f"导出汇总数据: 获取到 {len(result.data)} 条记录")
 
         summary = {}
